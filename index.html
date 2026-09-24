@@ -77,7 +77,7 @@ footer{max-width:980px;margin:0 auto;padding:0 16px 32px;font-size:11.5px;color:
   <section class="vg-card">
     <div class="vg-head">
       <h2>🚗 Quanto custa a viagem?</h2>
-      <span class="vg-sub">Pedágio + etanol + desgaste entre filiais · carro de passeio</span>
+      <span class="vg-sub">Pedágio + etanol entre filiais · carro de passeio</span>
     </div>
         <div class="vg-form">
           <label>Origem<select id="vg-origem"></select></label>
@@ -89,7 +89,7 @@ footer{max-width:980px;margin:0 auto;padding:0 16px 32px;font-size:11.5px;color:
         <div id="vg-resultado"></div>
   </section>
 </main>
-<footer>Valores estimados. Pedágio: TollGuru, rota mais rápida, pagamento por tag. Etanol: preço médio de revenda na cidade de origem. Desgaste do veículo: R$ 0,38 por km (mesmo valor do reembolso de despesas de viagem). Atualizado em 23/09/2026 21:35.</footer>
+<footer>Valores estimados. Pedágio: TollGuru, rota mais rápida, pagamento por tag. Etanol: preço médio de revenda na cidade de origem. Atualizado em 23/09/2026 21:38.</footer>
 <script>
 
 (function(){
@@ -165,24 +165,23 @@ function calcular(){
   const pendente = rotas.some(r => r.ped == null);
   const ped = pendente ? null : rotas.reduce((s, r) => s + r.ped, 0);
   const litros = cons > 0 ? km / cons : null;
-  const comb = litros != null && preco > 0 ? litros * preco : null;
-  const reemb = V.config.reembolso_km || 0;           // desgaste do veiculo (mesmo valor do Relatorio de Despesas)
-  const desgaste = km * reemb;
-  const total = (ped || 0) + (comb || 0) + desgaste;
+  // adicional por km (aba CONFIG VIAGENS) somado ao combustivel, igual ao Relatorio de Despesas de Viagem
+  const adic = V.config.reembolso_km || 0;
+  const comb = litros != null && preco > 0 ? litros * preco + km * adic : null;
+  const total = (ped || 0) + (comb || 0);
   const nPracas = pendente ? null : rotas.reduce((s, r) => s + r.pracas.length, 0);
   let extra = '';
   if (!PUBLICO) {
     const outro = tipo === 'etanol' ? 'gasolina' : 'etanol';
     const pOutro = precoPadrao(o, outro)[0], cOutro = consumoPadrao(outro);
-    if (pOutro && cOutro) extra = ` · com ${outro}: ${brl(km / cOutro * pOutro)}`;
+    if (pOutro && cOutro) extra = ` · com ${outro}: ${brl(km / cOutro * pOutro + km * adic)}`;
   }
 
   let html = `<div class="vg-kpis">
     <div class="vg-kpi"><span>Distância</span><b>${num(km, 1)} km</b><small>${horas(min)} ao volante</small></div>
     <div class="vg-kpi"><span>Pedágio (${V.config.pagamento === 'TAG' ? 'tag' : 'dinheiro'})</span><b>${pendente ? 'pendente' : brl(ped)}</b><small>${pendente ? 'ainda em cálculo' : nPracas + (nPracas === 1 ? ' praça' : ' praças')}</small></div>
     <div class="vg-kpi"><span>Combustível (${tipo})</span><b>${brl(comb)}</b><small>${litros != null ? num(litros, 1) + ' litros' : '—'}${extra}</small></div>
-    ${reemb ? `<div class="vg-kpi"><span>Desgaste do veículo</span><b>${brl(desgaste)}</b><small>${brl(reemb)} por km</small></div>` : ''}
-    <div class="vg-kpi total"><span>Total ${chkIV.checked ? 'ida e volta' : 'só ida'}</span><b>${pendente ? '≥ ' : ''}${brl(total)}</b><small>${pendente ? 'sem o pedágio' : 'pedágio + combustível' + (reemb ? ' + desgaste' : '')}</small></div>
+    <div class="vg-kpi total"><span>Total ${chkIV.checked ? 'ida e volta' : 'só ida'}</span><b>${pendente ? '≥ ' : ''}${brl(total)}</b><small>${pendente ? 'sem o pedágio' : 'pedágio + combustível'}</small></div>
   </div>
   <div class="vg-pernas">` + pernas.map(([a, b], i) => `
     <div class="vg-perna">
@@ -222,7 +221,7 @@ if (!PUBLICO && $('vg-rodape')) {
   else rod += ` · ${S.transacoes_hoje}/${S.transacoes_por_dia} transações usadas hoje (5 por consulta; modo em cadeia: ${esc(S.modo)})`;
   if (S.erro) rod += `<br><span class="erro">Último erro do TollGuru: ${esc(S.erro)}</span>`;
   rod += `<br><b>Combustível:</b> ${V.config.preco_manual || V.config.preco_manual_etanol ? 'preço manual onde definido na aba CONFIG VIAGENS; senão ' : ''}preço médio semanal da ANP na cidade de origem · consumo: etanol ${num(V.config.consumo_etanol_km_l, 1)} km/l, gasolina ${num(V.config.consumo_km_l, 1)} km/l`;
-  rod += `<br><b>Desgaste do veículo:</b> ${brl(V.config.reembolso_km || 0)} por km · teto de estacionamento ${brl(V.config.teto_estacionamento_dia || 0)}/dia (aba CONFIG VIAGENS; os mesmos valores vão para o Relatório de Despesas de Viagem)`;
+  rod += `<br><b>Adicional no combustível:</b> ${brl(V.config.reembolso_km || 0)} por km, já somado ao valor do combustível · teto de estacionamento ${brl(V.config.teto_estacionamento_dia || 0)}/dia (aba CONFIG VIAGENS; os mesmos valores vão para o Relatório de Despesas de Viagem)`;
   rod += `<br><b>Página dos gerentes:</b> sempre etanol, preço da ANP (ou o preço manual da aba CONFIG VIAGENS) e consumo da planilha. O que você digita aqui não muda a página dos gerentes.`;
   if (V.avisos.length) rod += '<br><span class="erro">Problemas na planilha: ' + V.avisos.map(esc).join(' · ') + '</span>';
   $('vg-rodape').innerHTML = rod;
